@@ -1,9 +1,0 @@
-const Express=require("express");
-const { TestControllerUser } = require("../Controllers/TestController");
-
-const Router=Express.Router();
-
-
-Router.get("/Test-user",TestControllerUser)
-
-module.exports=Router
