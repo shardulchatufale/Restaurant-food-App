@@ -24,7 +24,7 @@ Router.delete("/DeleteUser" ,authantication,Authorization,deleteUser)
 Router.get("/Createrestaurant",authantication,Authorization,createRestaurant)
 Router.get("/GetRestaurant", authantication,findHotel)
 
-Router.post("/Placeorder",PlaceOrder)
+Router.post("/Placeorder",authantication,PlaceOrder)
 
 Router.get("/Test-user",TestControllerUser)
 

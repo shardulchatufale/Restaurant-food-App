@@ -1,7 +1,7 @@
 const ReastaurantModel = require("../Model/ReastaurantModel")
 const UserModel = require("../Model/UserModel")
 const mongoose = require('mongoose');
-
+const qrcode = require('qrcode');
 
 const isValid = function (val) {
     if (typeof val === "undefined" || val === null) return false;
@@ -137,56 +137,67 @@ const findHotel = async (req, res) => {
     }
 };
 
+
 const PlaceOrder = async (req, res) => {
     console.log(".........139");
 
-    const { _id } = req.query
-    const { quantity } = req.body
-    const { dish_Name } = req.body
+    const { _id } = req.query;
+    const { quantity, dish_Name } = req.body;
 
     const hotels = await ReastaurantModel.findOne({ _id: _id });
 
     console.log(hotels.foods, ".....150");
 
     if (hotels === null) {
-        res.status(400).send({
+        return res.status(400).send({
             success: false,
-            message: "this hotel dont have dish or quantity of dish in boder",
+            message: "This hotel doesn't have the specified dish or quantity.",
             hotelInfo: hotels,
         });
     }
-    console.log(hotels);
+    console.log(hotels, ".........158");
 
-    let checkItems = false
-    let actPrice
+    let checkItems = false;
+    let actPrice;
     for (let i = 0; i < hotels.foods.length; i++) {
-
         if (hotels.foods[i].Quantity > quantity && hotels.foods[i].Dish_Name === dish_Name) {
-            checkItems = true
-            hotels.foods[i].Quantity = hotels.foods[i].Quantity - quantity
-            actPrice = hotels.foods[i].Price
-            await hotels.save()
-            break
+            checkItems = true;
+            hotels.foods[i].Quantity = hotels.foods[i].Quantity - quantity;
+            actPrice = hotels.foods[i].Price;
+            await hotels.save();
+            break;
         }
-
     }
 
-    if (checkItems == true) {
-        res.status(200).json({
-            success: true,
-            message: `Order placed successfully,you have to pay ${actPrice * quantity}  `,
-            
+    if (checkItems) {
+        const totalAmount = actPrice * quantity;
+        const upiLink = `upi://pay?pa=7887568942@ybl&pn=Shardul%20Chatufale&am=${totalAmount}&cu=INR`;
 
-        })
+        // Generate the QR code as a base64 string
+        qrcode.toDataURL(upiLink, (err, qrCodeUrl) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: "Error generating QR code",
+                    error: err.message,
+                });
+            }
+
+            // Send response after QR code generation
+            res.status(200).send({
+                success: true,
+                message: `Order placed successfully, you have to pay ₹${totalAmount}`,
+                qrCodeUrl: qrCodeUrl, // Base64 QR code image
+            });
+        });
     } else {
-        res.status(400).json({
+        res.status(400).send({
             success: false,
-            message: "items is invalid"
-
-        })
+            message: "Items are invalid",
+        });
     }
+};
 
-}
 
 
 
@@ -195,18 +206,3 @@ module.exports = {
     createRestaurant, findHotel, PlaceOrder
 };
 
-/*
-
- const check_items=await ReastaurantModel.find({$and:[
-    { "foods.Quantity":{$gte:quantity}},
-    { "foods.Dish_Name":dish_Name}
- ]})
-
- if(check_items.length==0){
-     res.status(400).json({
-         success: false,
-         message: "No Items found provided by you"
-     
-     })}
- 
- */
