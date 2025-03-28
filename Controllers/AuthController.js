@@ -63,6 +63,8 @@ const Register = async (req, res) => {
         // Create new user
         let createUser = await UserModel.create({ UserName, Email, Password:hashedpass, Address, phone, Usertype });
 
+   
+
         return res.status(201).send({ success: true, message: "User created successfully", user: createUser });
     } catch (error) {
         console.error("Error in Register API:", error);

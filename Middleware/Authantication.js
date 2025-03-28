@@ -13,7 +13,7 @@ console.log("........7",token);
             
             res.status(500).send({
                 success: false,
-                message: "NOT OK"
+                message: "Token is invalid"
                 
             })}
 
@@ -31,7 +31,7 @@ const Authorization=async (req,res,next)=>{
 
      if(!id){
         return res.status(500).send({
-            message:"Please provide id in params",
+            message:"Please provide id in params from login api",
             success:false
         })
      }

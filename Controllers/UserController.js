@@ -18,6 +18,7 @@ const getUser = async (req, res) => {
     try {
 
         let findUser = await UserModel.findById(req["userId"], { Password: 0, _id: 0 })
+
         return res.status(200).send({ findUser, success: true })
     } catch (err) {
         return res.status(500).send({ message: "You are not logd in please provide token in header", success: false })
@@ -40,7 +41,7 @@ const UpdateUser = async (req, res) => {
         if (UserName) {
             if (!isValid(UserName)) return res.status(500).send({ success: false, message: "Username is invalid" })
             const FindUsername = await UserModel.findOne({ UserName: UserName })
-            if (findUser) return res.status(500).send({ success: false, message: "username is already in use" })
+            if (FindUsername) return res.status(500).send({ success: false, message: "username is already in use" })
             findUser.UserName = UserName
         }
 
@@ -73,9 +74,10 @@ const UpdateUser = async (req, res) => {
             if (!isValid(Address)) return res.status(500).send({ success: false, message: "invalisd address" })
             findUser.Address = Address
         }
-
-        const updatedUser = await UserModel.findByIdAndUpdate({ _id: req['userId'], findUser })
-        return res.status(201).send({ success: true, message: updatedUser }, updatedUser, { new: true })
+//findUser.save()
+       
+         const updatedUser = await UserModel.findByIdAndUpdate({ _id: req['userId'], findUser })
+        return res.status(201).send({ success: true }, { new: true })
 
     } catch (err) {
         console.log(err);
@@ -85,7 +87,9 @@ const UpdateUser = async (req, res) => {
 
 const ForgotPass = async function (req, res) {
     console.log(".......94");
-    const { Email } = req.body;
+    const { Email,...rest } = req.body;
+    if (Object.keys(rest).length > 0) return res.status(500).send({ success: false, message: "you cant provide other than email" })
+        if (Object.keys(req.body).length == 0) return res.status(500).send({ success: false, message: "provide email to update " })
 
     if (!Email || !emailRegex.test(Email)) {
         return res.status(500).send({ success: false, message: "Email is invalid" });
@@ -150,6 +154,12 @@ const varifyOTP=async (req,res)=>{
 
 }
 
+const deleteUser= async (req,res)=>{
+    await UserModel.findByIdAndDelete(req['userId'])
+    res.status(201).json({ message: 'User deleted successfully' });
+}
+
+
 
 
 
@@ -159,5 +169,5 @@ const varifyOTP=async (req,res)=>{
 module.exports = {
     ForgotPass,
     getUser,
-    UpdateUser,varifyOTP
+    UpdateUser,varifyOTP,deleteUser
 };
