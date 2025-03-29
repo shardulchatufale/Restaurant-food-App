@@ -1,109 +1,76 @@
-const ReastaurantModel = require("../Model/ReastaurantModel")
-const UserModel = require("../Model/UserModel")
+const ReastaurantModel = require("../Model/ReastaurantModel");
+const UserModel = require("../Model/UserModel");
 const mongoose = require('mongoose');
 const qrcode = require('qrcode');
 
-const isValid = function (val) {
-    if (typeof val === "undefined" || val === null) return false;
-    if (typeof val === "string" && val.trim().length === 0) return false;
-
-    return true;
+// Utility function to validate input
+const isValid = (val) => {
+    return !(typeof val === "undefined" || val === null || (typeof val === "string" && val.trim().length === 0));
 };
+
+// Create Restaurant Controller
 const createRestaurant = async (req, res) => {
+    try {
+        const {
+            title, imeageURL, foods, TimeRanges, pickup, delivery,
+            isOpen, logoURL, rating, code, coords, time, ...rest
+        } = req.body;
 
-    let { title, imeageURL, foods, TimeRanges, pickup, delivery, isOpen, logoURL, rating, code
-        , coords, time, ...rest } = req.body
+        // Check for extra fields
+        if (Object.keys(rest).length > 0) 
+            return res.status(400).json({ success: false, message: `Invalid fields provided: ${Object.keys(rest)}` });
 
+        // Check for required fields
+        if (Object.keys(req.body).length === 0 || !title || !imeageURL || !foods || !TimeRanges || !logoURL || !rating || !code || !coords)
+            return res.status(400).json({ success: false, message: "All required fields must be provided" });
 
+        if (!isValid(title))
+            return res.status(400).json({ success: false, message: "Invalid or missing title" });
+console.log("......29");
 
-    if (Object.keys(rest).length > 0) return res.status(500).send({ success: false, messsage: `you canot prode  thing other than schema ${Object.keys(rest)}` })
-    if (Object.keys(req.body).length == 0) return res.status(500).send({ success: false, messsage: "All fields is required" })
+        // Food items validation
+        const validCategories = ["Snacks", "Meal", "Breakfast"];
+        for (let i = 0; i < foods.length; i++) {
+            const { Dish_Name, Price, Category } = foods[i];
 
-    if (!title || !imeageURL || !foods || !TimeRanges || !logoURL || !rating || !code || !coords)
-        return res.status(500).send({ success: false, messsage: "All fields is required" })
+            if (!Dish_Name || typeof Dish_Name !== 'string')
+                return res.status(400).json({ success: false, message: `Invalid Dish_Name in food item ${i + 1}` });
 
-    if (!isValid(title))
-        return res.status(500).send({ success: false, messsage: "Title is invalid" })
+            if (!Price || typeof Price !== "number")
+                return res.status(400).json({ success: false, message: `Invalid Price in food item ${i + 1}` });
 
-    if (imeageURL) {
-        if (typeof imeageURL !== 'string') { }
-    }
-
-
-    for (i = 0; i < foods.length; i++) {
-
-        if (!foods[i].Dish_Name || typeof foods[i].Dish_Name !== 'string') {
-            console.log(foods[i]);
-            return res.status(400).send({
-                success: false,
-                message: "Each food item must include a valid 'Dish_Name'."
-            });
+            if (!Category || typeof Category !== 'string' || !validCategories.includes(Category))
+                return res.status(400).json({ success: false, message: `Invalid Category in food item ${i + 1}. Valid categories are: ${validCategories.join(", ")}` });
         }
 
-        if (!foods[i].Price || typeof (foods[i].Price) !== "number") {
-            console.log(typeof foods[i].Price);
-            return res.status(400).send({
-                success: false,
-                message: "Each food item must include a valid 'price'."
-            });
-        }
-        const validCategories = ["Snaks", "Meal", "Breakfast"];
-
-
-        if (!foods[i].Category || typeof (foods[i].Category) !== 'string' || !validCategories.includes(foods[i].Category)) {
-            console.log(foods[i]);
-            return res.status(400).send({
-
-                success: false,
-                message: "Each food item must include a valid category.it should be string and from Snaks or Meal or Breakfast "
-            });
+        // Check if user is an owner
+        const user = await UserModel.findById(req.userId);
+        if (!user || user.Usertype !== "Owner") {
+            return res.status(403).json({ success: false, message: "You are not authorized to create a restaurant" });
         }
 
+        // Create restaurant
+       let created_hotel= await ReastaurantModel.create(req.body);
+        return res.status(201).json({ success: true, message: "Restaurant created successfully" ,id:created_hotel._id});
+
+    } catch (error) {
+        console.error("Error in createRestaurant API:", error);
+        return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
     }
+};
 
-
-    let check = await UserModel.findById({ _id: req['userId'] })
-
-    if (check.Usertype !== "Owner") {
-        return res.status(400).send({
-            success: false,
-            message: "You cannot create hotel,your profile type is customer"
-        })
-    }
-
-    await ReastaurantModel.create(req.body)
-
-    return res.status(201).send({
-        success: true,
-        message: "Hotel created successfully"
-    })
-
-}
+// Find Hotel Controller
 const findHotel = async (req, res) => {
     try {
-
         const { _id, Dish_Name, Category, maxPrice, minPrice, ...rest } = req.query;
-        if (Object.keys(rest).length > 0) {
-            res.status(400).json({
-                success: false,
-                message: "You cant provide other tan '_id, Dish_Name, Category, maxPrice, minPrice'"
-            });
-        }
 
+        if (Object.keys(rest).length > 0)
+            return res.status(400).json({ success: false, message: "Invalid query parameters provided" });
 
         let query = {};
-
-        if (_id) {
-            query["_id"] = _id;
-        }
-
-        if (Dish_Name) {
-            query["foods.Dish_Name"] = Dish_Name;
-        }
-
-        if (Category) {
-            query["foods.Category"] = Category;
-        }
+        if (_id) query["_id"] = _id;
+        if (Dish_Name) query["foods.Dish_Name"] = Dish_Name;
+        if (Category) query["foods.Category"] = Category;
 
         if (maxPrice || minPrice) {
             query["foods.Price"] = {};
@@ -112,97 +79,75 @@ const findHotel = async (req, res) => {
         }
 
         const hotels = await ReastaurantModel.find(query);
-        if (hotels.length == 0) {
-            res.status(200).json({
-                success: false,
-                message: "No hotel according to filter"
-
-            })
-        } else {
-            res.status(200).json({
-                success: true,
-                message: "Hotels fetched successfully",
-                data: hotels,
-            });
+        if (!hotels.length) {
+            return res.status(404).json({ success: false, message: "No hotels found matching the criteria" });
         }
 
+        return res.status(200).json({ success: true, message: "Hotels fetched successfully", data: hotels });
 
-
-    } catch (err) {
-        res.status(500).json({
-            success: false,
-            message: "An error occurred while fetching hotels",
-            error: err.message,
-        });
+    } catch (error) {
+        console.error("Error in findHotel API:", error);
+        return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
     }
 };
 
-
+// Place Order Controller
 const PlaceOrder = async (req, res) => {
-    console.log(".........139");
+    try {
+        const { _id } = req.query;
+        const { quantity, dish_Name } = req.body;
 
-    const { _id } = req.query;
-    const { quantity, dish_Name } = req.body;
-
-    const hotels = await ReastaurantModel.findOne({ _id: _id });
-
-    console.log(hotels.foods, ".....150");
-
-    if (hotels === null) {
-        return res.status(400).send({
-            success: false,
-            message: "This hotel doesn't have the specified dish or quantity.",
-            hotelInfo: hotels,
-        });
-    }
-    console.log(hotels, ".........158");
-
-    let checkItems = false;
-    let actPrice;
-    for (let i = 0; i < hotels.foods.length; i++) {
-        if (hotels.foods[i].Quantity > quantity && hotels.foods[i].Dish_Name === dish_Name) {
-            checkItems = true;
-            hotels.foods[i].Quantity = hotels.foods[i].Quantity - quantity;
-            actPrice = hotels.foods[i].Price;
-            await hotels.save();
-            break;
+        if (!quantity || quantity <= 0) {
+            return res.status(400).json({ success: false, message: "Quantity must be greater than 0" });
         }
-    }
 
-    if (checkItems) {
-        const totalAmount = actPrice * quantity;
+        const hotel = await ReastaurantModel.findById(_id);
+        if (!hotel) {
+            return res.status(404).json({ success: false, message: "Hotel not found" });
+        }
+
+        let itemFound = false;
+        let actualPrice;
+
+        for (let food of hotel.foods) {
+            if (food.Dish_Name === dish_Name && food.Quantity >= quantity) {
+                itemFound = true;
+                actualPrice = food.Price;
+                food.Quantity -= quantity;
+                await hotel.save();
+                break;
+            }
+        }
+
+        if (!itemFound) {
+            return res.status(404).json({ success: false, message: "Dish not found or insufficient quantity" });
+        }
+
+        const totalAmount = actualPrice * quantity;
         const upiLink = `upi://pay?pa=7887568942@ybl&pn=Shardul%20Chatufale&am=${totalAmount}&cu=INR`;
 
-        // Generate the QR code as a base64 string
         qrcode.toDataURL(upiLink, (err, qrCodeUrl) => {
             if (err) {
-                return res.status(500).json({
-                    success: false,
-                    message: "Error generating QR code",
-                    error: err.message,
-                });
+                console.error("Error generating QR code:", err);
+                return res.status(500).json({ success: false, message: "Error generating QR code", error: err.message });
             }
 
-            // Send response after QR code generation
-            res.status(200).send({
+            return res.status(200).json({
                 success: true,
-                message: `Order placed successfully, you have to pay ₹${totalAmount}`,
-                qrCodeUrl: qrCodeUrl, // Base64 QR code image
+                message: `Order placed successfully. Please pay ₹${totalAmount}.`,
+                qrCodeUrl: qrCodeUrl
             });
         });
-    } else {
-        res.status(400).send({
-            success: false,
-            message: "Items are invalid",
-        });
+
+    } catch (error) {
+        console.error("Error in PlaceOrder API:", error);
+        return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
     }
 };
 
-
-
-
-
+// Exporting Controllers
 module.exports = {
-    createRestaurant, findHotel, PlaceOrder
+    createRestaurant,
+    findHotel,
+    PlaceOrder
 };
-

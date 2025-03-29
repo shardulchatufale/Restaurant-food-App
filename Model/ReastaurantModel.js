@@ -21,7 +21,7 @@ const RestaurantSchema=new mongoose.Schema({
         required: true,
         default: "Meal",
         enum: {
-            values: ["Snaks", "Meal", "Breakfast"],
+            values: ["Snacks", "Meal", "Breakfast"],
             message: "Category must be either 'Snaks', 'Meal', or 'Breakfast'."
         }
     }
